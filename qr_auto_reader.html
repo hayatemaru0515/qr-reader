@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>QRコードをよみとろう！</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,"Noto Sans JP",sans-serif;background:#fff8dc;color:#253238;text-align:center}
+    header{background:#58c9b9;padding:18px 12px;color:#fff} h1{margin:0;font-size:clamp(24px,6vw,40px)}
+    main{max-width:680px;margin:auto;padding:20px 14px} .card{background:#fff;border-radius:24px;padding:18px;box-shadow:0 8px 24px #0002}
+    .message{font-size:clamp(20px,5vw,30px);font-weight:800;margin:6px 0 16px}.sub{font-size:16px;margin-bottom:15px}
+    #reader{width:100%;overflow:hidden;border-radius:22px;border:6px solid #ffd54f;background:#111}
+    #status{margin-top:16px;min-height:48px;font-size:22px;font-weight:800;color:#147d6f}
+    button{border:0;border-radius:999px;background:#ff8a65;color:white;font-weight:800;font-size:20px;padding:14px 24px;margin-top:12px;box-shadow:0 4px 10px #0002}
+    .note{font-size:13px;color:#667;margin-top:18px;line-height:1.6}
+  </style>
+</head>
+<body>
+<header><h1>📷 QRコードを よみとろう！</h1></header>
+<main><div class="card">
+  <div class="message">QRコードを しかくの なかに いれてね！</div>
+  <div class="sub">よみとれたら、そのページへ自動で移動します。</div>
+  <div id="reader"></div>
+  <div id="status">カメラを じゅんびしています…</div>
+  <button id="retry" hidden>もういちど よみとる</button>
+  <div class="note">※ カメラの使用を「許可」してください。HTTPSで公開したページ、またはlocalhostでの利用を想定しています。</div>
+</div></main>
+<script>
+  let moved = false;
+  const statusEl = document.getElementById('status');
+  const retry = document.getElementById('retry');
+  const qr = new Html5Qrcode('reader');
+
+  async function startScanner(){
+    moved = false;
+    retry.hidden = true;
+    statusEl.textContent = 'QRコードを うつしてね！';
+    try{
+      await qr.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: (w,h) => { const s=Math.floor(Math.min(w,h)*0.72); return {width:s,height:s}; } },
+        async decodedText => {
+          if(moved) return;
+          moved = true;
+          statusEl.textContent = '✅ よみとれたよ！';
+          if(navigator.vibrate) navigator.vibrate(120);
+          try { await qr.stop(); } catch(e) {}
+          // 安全のためWebページのURLのみ自動遷移
+          try {
+            const u = new URL(decodedText);
+            if(u.protocol === 'https:' || u.protocol === 'http:'){
+              window.location.assign(u.href);
+            } else {
+              throw new Error('unsupported');
+            }
+          } catch(e){
+            statusEl.textContent = 'このQRコードはWebページではありません。';
+            retry.hidden = false;
+          }
+        },
+        () => {}
+      );
+    } catch(e){
+      statusEl.textContent = 'カメラを使えません。ブラウザのカメラ許可を確認してください。';
+      retry.hidden = false;
+    }
+  }
+  retry.addEventListener('click', async () => { try{ await qr.stop(); }catch(e){} startScanner(); });
+  startScanner();
+</script>
+</body>
+</html>
